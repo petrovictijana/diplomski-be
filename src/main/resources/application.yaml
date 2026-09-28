@@ -1,0 +1,14 @@
+spring:
+  application:
+    name: diplomski-be
+  datasource:
+    url: jdbc:postgresql://localhost:5432/diplomski-postgres
+    username: user
+    password: pass
+  jpa:
+    hibernate:
+      ddl-auto: validate # zelimo da Flyway bude jedini vlasnik schema promena
+  flyway:
+    enabled: true
+    locations:
+      - classpath:db/migration
