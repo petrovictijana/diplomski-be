@@ -4,6 +4,7 @@ import jakarta.persistence.*;
 import lombok.*;
 
 import java.time.Instant;
+import java.time.OffsetDateTime;
 import java.util.UUID;
 
 @Entity
@@ -12,7 +13,7 @@ import java.util.UUID;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-@Table(name = "User")
+@Table(name = "User", schema = "public")
 public class User {
 
     @Id
@@ -34,8 +35,9 @@ public class User {
     @Column(name = "isActive", nullable = false)
     private boolean active = false;
 
+    @Builder.Default
     @Column(name = "createdAt", nullable = false, updatable = false)
-    private Instant createdAt;
+    private OffsetDateTime createdAt = OffsetDateTime.now();
 
     @Column(name = "createdBy")
     private UUID createdBy;
@@ -47,7 +49,7 @@ public class User {
     private UUID updatedBy;
 
     @Column(name = "lastLoginAt")
-    private Instant lastLoginAt;
+    private OffsetDateTime lastLoginAt;
 
     @Override
     public boolean equals(Object obj) {

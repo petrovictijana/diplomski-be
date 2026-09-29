@@ -19,8 +19,11 @@ public class UserInvitation {
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
 
+    @Column(name = "userId", nullable = false)
+    private UUID userId;
+
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "userId", nullable = false)
+    @JoinColumn(name = "userId", nullable = false, insertable = false, updatable = false)
     private User user;
 
     @Column(name = "tokenHash")
@@ -36,16 +39,14 @@ public class UserInvitation {
     @Column(name = "createdAt", insertable = false, updatable = false)
     private OffsetDateTime createdAt = OffsetDateTime.now();
 
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "createdBy", nullable = false)
-    private User createdBy;
+    @Column(name = "createdBy", nullable = false, updatable = false)
+    private UUID createdBy;
 
     @Column(name = "revokedAt")
     private OffsetDateTime revokedAt;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "revokedBy")
-    private User revokedBy;
+    @Column(name = "revokedBy", nullable = false, updatable = false)
+    private UUID revokedBy;
 
     @Override
     public boolean equals(Object obj) {

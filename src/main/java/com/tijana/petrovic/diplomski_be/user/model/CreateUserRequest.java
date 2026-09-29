@@ -1,13 +1,13 @@
 package com.tijana.petrovic.diplomski_be.user.model;
 
-import lombok.Builder;
-import lombok.Getter;
-import lombok.Setter;
+import lombok.*;
 
+@NoArgsConstructor
+@AllArgsConstructor
 @Getter
 @Setter
 @Builder
-public class AddUserRequest {
+public class CreateUserRequest {
 
     private String firstName;
 

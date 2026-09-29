@@ -4,6 +4,7 @@ import com.tijana.petrovic.diplomski_be.user.entity.User;
 import com.tijana.petrovic.diplomski_be.user.exception.UserNotFoundException;
 import org.springframework.data.jpa.repository.JpaRepository;
 
+import java.util.Optional;
 import java.util.UUID;
 
 public interface UserRepository extends JpaRepository<User, UUID> {
@@ -21,4 +22,6 @@ public interface UserRepository extends JpaRepository<User, UUID> {
                         "User with ID %s not found.".formatted(id)
                 ));
     }
+
+    Optional<User> findByEmail(String email);
 }

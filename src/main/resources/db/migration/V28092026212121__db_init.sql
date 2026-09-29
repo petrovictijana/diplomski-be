@@ -38,7 +38,7 @@ CREATE TABLE public."UserInvitation" (
     "usedAt" TIMESTAMPTZ,
 
     "createdAt" TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "createdBy" UUID NOT NULL,
+    "createdBy" UUID,
 
     "revokedAt" TIMESTAMPTZ,
     "revokedBy" UUID,

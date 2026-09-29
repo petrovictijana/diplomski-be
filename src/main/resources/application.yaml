@@ -10,6 +10,9 @@ spring:
       ddl-auto: validate # zelimo da Flyway bude jedini vlasnik schema promena
       naming:
         physical-strategy: org.hibernate.boot.model.naming.PhysicalNamingStrategyStandardImpl
+    properties:
+      hibernate:
+        globally_quoted_identifiers: true
   flyway:
     enabled: true
     locations:
