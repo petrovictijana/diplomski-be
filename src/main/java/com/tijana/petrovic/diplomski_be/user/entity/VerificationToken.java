@@ -12,8 +12,8 @@ import java.util.UUID;
 @Builder
 @AllArgsConstructor
 @NoArgsConstructor
-@Table(name = "UserInvitation", schema = "public")
-public class UserInvitation {
+@Table(name = "VerificationToken", schema = "public")
+public class VerificationToken {
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
@@ -51,7 +51,7 @@ public class UserInvitation {
     @Override
     public boolean equals(Object obj) {
         if (this == obj) return true;
-        if (!(obj instanceof UserInvitation other)) return false;
+        if (!(obj instanceof VerificationToken other)) return false;
 
         return tokenHash != null && tokenHash.equals(other.tokenHash);
     }

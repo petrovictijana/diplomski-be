@@ -5,6 +5,7 @@ import com.tijana.petrovic.diplomski_be.user.exception.ActiveUserAlreadyExistsEx
 import com.tijana.petrovic.diplomski_be.user.exception.InactiveUserAlreadyExistsException;
 import com.tijana.petrovic.diplomski_be.user.model.CreateUserRequest;
 import com.tijana.petrovic.diplomski_be.user.repository.UserRepository;
+import jakarta.mail.MessagingException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
 import org.springframework.stereotype.Service;
@@ -15,9 +16,9 @@ import org.springframework.stereotype.Service;
 public class UserService {
 
     private final UserRepository userRepository;
-    private final UserInvitationService userInvitationService;
+    private final VerificationTokenService verificationTokenService;
 
-    public void createUser(CreateUserRequest request) {
+    public void createUser(CreateUserRequest request) throws MessagingException {
         var firstName = request.getFirstName();
         var lastName = request.getLastName();
         var email = request.getEmail();
@@ -33,7 +34,7 @@ public class UserService {
 
         var createdUser = userRepository.save(user);
 
-        userInvitationService.createInvitation(createdUser, null);
+        verificationTokenService.createInvitation(createdUser, null);
     }
 
     private void validateEmailNotInUse(String email) {

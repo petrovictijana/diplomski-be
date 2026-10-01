@@ -27,8 +27,8 @@ CREATE TABLE public."User" (
         REFERENCES public."User"(id)
 );
 
-/* Create UserInvitation table */
-CREATE TABLE public."UserInvitation" (
+/* Create VerificationToken table */
+CREATE TABLE public."VerificationToken" (
     id UUID PRIMARY KEY,
 
     "userId" UUID NOT NULL,
@@ -43,24 +43,24 @@ CREATE TABLE public."UserInvitation" (
     "revokedAt" TIMESTAMPTZ,
     "revokedBy" UUID,
 
-    CONSTRAINT "fk_UserInvitation_userId"
+    CONSTRAINT "fk_VerificationToken_userId"
         FOREIGN KEY ("userId")
         REFERENCES public."User"(id),
 
-    CONSTRAINT "fk_UserInvitation_createdBy"
+    CONSTRAINT "fk_VerificationToken_createdBy"
         FOREIGN KEY ("createdBy")
         REFERENCES public."User"(id),
 
-    CONSTRAINT "fk_UserInvitation_revokedBy"
+    CONSTRAINT "fk_VerificationToken_revokedBy"
         FOREIGN KEY ("revokedBy")
         REFERENCES public."User"(id)
 );
 
 /* Indexes */
-CREATE INDEX "idx_UserInvitation_userId"
-    ON public."UserInvitation"("userId");
+CREATE INDEX "idx_VerificationToken_userId"
+    ON public."VerificationToken"("userId");
 
 /* Make sure only one active invitation exists per user */
-CREATE UNIQUE INDEX "uq_UserInvitation_active"
-    ON public."UserInvitation"("userId")
+CREATE UNIQUE INDEX "uq_VerificationToken_active"
+    ON public."VerificationToken"("userId")
     WHERE "usedAt" IS NULL AND "revokedAt" IS NULL;

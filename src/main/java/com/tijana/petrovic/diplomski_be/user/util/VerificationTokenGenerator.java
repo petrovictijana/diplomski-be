@@ -12,7 +12,7 @@ import java.util.HexFormat;
 
 @RequiredArgsConstructor
 @Service
-public class InvitationTokenGenerator {
+public class VerificationTokenGenerator {
 
     private static final SecureRandom secureRandom = new SecureRandom();
 

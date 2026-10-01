@@ -1,0 +1,19 @@
+<h1>Hi <span th:text="${firstName}"></span>,</h1>
+
+<p>
+    An account has been created for you on
+    <strong th:text="${appName}">My App</strong>.
+</p>
+
+<p>
+    To activate your account, verify your email address
+    and create your password.
+</p>
+
+<a th:href="${activationUrl}">
+    Activate account
+</a>
+
+<p>
+    This link will expire in 24 hours.
+</p>
