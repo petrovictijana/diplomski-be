@@ -1,17 +1,17 @@
-package com.tijana.petrovic.diplomski_be.user.model;
+package com.tijana.petrovic.diplomski_be.user.dto;
 
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
-@NoArgsConstructor
-@AllArgsConstructor
 @Getter
 @Setter
-public class LoginRequest {
+@NoArgsConstructor
+@AllArgsConstructor
+public class ActivateAccountRequest {
 
-    private String email;
+    private String token;
 
     private String password;
 }

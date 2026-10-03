@@ -1,4 +1,4 @@
-package com.tijana.petrovic.diplomski_be.user.model;
+package com.tijana.petrovic.diplomski_be.user.dto;
 
 import lombok.*;
 

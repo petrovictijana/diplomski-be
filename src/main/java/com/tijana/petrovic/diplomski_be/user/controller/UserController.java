@@ -1,6 +1,6 @@
 package com.tijana.petrovic.diplomski_be.user.controller;
 
-import com.tijana.petrovic.diplomski_be.user.model.CreateUserRequest;
+import com.tijana.petrovic.diplomski_be.user.dto.CreateUserRequest;
 import com.tijana.petrovic.diplomski_be.user.service.EmailService;
 import com.tijana.petrovic.diplomski_be.user.service.UserService;
 import jakarta.mail.MessagingException;

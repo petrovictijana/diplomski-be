@@ -3,7 +3,7 @@ package com.tijana.petrovic.diplomski_be.user.service;
 import com.tijana.petrovic.diplomski_be.user.entity.User;
 import com.tijana.petrovic.diplomski_be.user.exception.ActiveUserAlreadyExistsException;
 import com.tijana.petrovic.diplomski_be.user.exception.InactiveUserAlreadyExistsException;
-import com.tijana.petrovic.diplomski_be.user.model.CreateUserRequest;
+import com.tijana.petrovic.diplomski_be.user.dto.CreateUserRequest;
 import com.tijana.petrovic.diplomski_be.user.repository.UserRepository;
 import jakarta.mail.MessagingException;
 import lombok.RequiredArgsConstructor;
