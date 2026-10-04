@@ -32,8 +32,12 @@ spring:
 
 jwt:
   secret-key: ${JWT_SECRET_KEY}
-  access-token-expiration: 900000
-  refresh-token-expiration: 604800000
+  access-token-expiration: 15m
+  refresh-token-expiration: 7d
+  refresh-token-cookie:
+    name: refresh_token
+    secure: true # set to false in application-local.yml if your client does not send Secure cookies over HTTP
+    path: /auth
 
 app:
   invitation-token: # invitation-based account activation
