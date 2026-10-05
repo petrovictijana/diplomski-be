@@ -18,7 +18,21 @@
 
 	<properties>
 		<java.version>21</java.version>
+		<spring-cloud-aws.version>4.2.0</spring-cloud-aws.version>
 	</properties>
+
+	<dependencyManagement>
+		<dependencies>
+			<!-- Manages both the Spring Cloud AWS modules and the AWS SDK v2 BOM -->
+			<dependency>
+				<groupId>io.awspring.cloud</groupId>
+				<artifactId>spring-cloud-aws-dependencies</artifactId>
+				<version>${spring-cloud-aws.version}</version>
+				<type>pom</type>
+				<scope>import</scope>
+			</dependency>
+		</dependencies>
+	</dependencyManagement>
 
 	<dependencies>
 
@@ -117,6 +131,18 @@
 			<artifactId>jjwt-jackson</artifactId>
 			<version>0.12.6</version>
 			<scope>runtime</scope>
+		</dependency>
+
+		<!-- Object storage: S3Client + S3Presigner -->
+		<dependency>
+			<groupId>software.amazon.awssdk</groupId>
+			<artifactId>s3</artifactId>
+		</dependency>
+
+		<!-- Brings SqsAsyncClient and the @SqsListener infrastructure -->
+		<dependency>
+			<groupId>io.awspring.cloud</groupId>
+			<artifactId>spring-cloud-aws-starter-sqs</artifactId>
 		</dependency>
 
 	</dependencies>

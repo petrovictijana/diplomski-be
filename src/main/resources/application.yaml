@@ -43,3 +43,15 @@ app:
   invitation-token: # invitation-based account activation
     duration-in-hours: 24
 
+aws:
+  region: eu-central-1
+  endpoint: http://localhost:4566
+  access-key: ${AWS_ACCESS_KEY_ID:test}
+  secret-key: ${AWS_SECRET_ACCESS_KEY:test}
+  s3:
+    bucket: diplomski-documents
+    key-prefix: documents/
+    presigned-url-expiration: 15m
+    path-style-access: true # required by LocalStack, false against real S3
+  sqs:
+    document-upload-queue: document-upload-events

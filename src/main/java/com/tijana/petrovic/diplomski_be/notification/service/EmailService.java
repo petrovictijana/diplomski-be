@@ -14,6 +14,8 @@ import java.nio.charset.StandardCharsets;
 @Service
 public class EmailService {
 
+    private static final String ACTIVATION_EMAIL_SUBJECT_TITLE = "Activate your account";
+
     private final JavaMailSender mailSender;
     private final SpringTemplateEngine templateEngine;
 
@@ -27,14 +29,13 @@ public class EmailService {
 
         var html = templateEngine.process(
                 "email/account-activation",
-                context
-        );
+                context);
 
         var message = mailSender.createMimeMessage();
         var helper = new MimeMessageHelper(message, true, StandardCharsets.UTF_8.name());
 
         helper.setTo(to);
-        helper.setSubject("Activate your account");
+        helper.setSubject(ACTIVATION_EMAIL_SUBJECT_TITLE);
         helper.setText(html, true);
 
         mailSender.send(message);
