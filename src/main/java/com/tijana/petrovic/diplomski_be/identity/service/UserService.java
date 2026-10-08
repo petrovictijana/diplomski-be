@@ -19,9 +19,9 @@ public class UserService {
     private final VerificationTokenService verificationTokenService;
 
     public void createUser(CreateUserRequest request) throws MessagingException {
-        var firstName = request.getFirstName();
-        var lastName = request.getLastName();
-        var email = request.getEmail();
+        var firstName = request.firstName();
+        var lastName = request.lastName();
+        var email = request.email();
 
         log.info("[UserService] TODO");
         validateEmailNotInUse(email);

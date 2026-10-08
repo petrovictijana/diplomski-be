@@ -4,6 +4,7 @@ import com.tijana.petrovic.diplomski_be.identity.dto.CreateUserRequest;
 import com.tijana.petrovic.diplomski_be.notification.service.EmailService;
 import com.tijana.petrovic.diplomski_be.identity.service.UserService;
 import jakarta.mail.MessagingException;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -17,7 +18,7 @@ public class UserController {
     private final EmailService emailService;
 
     @PostMapping
-    public ResponseEntity<String> createUser(@RequestBody CreateUserRequest request) throws MessagingException {
+    public ResponseEntity<String> createUser(@Valid @RequestBody CreateUserRequest request) throws MessagingException {
         userService.createUser(request);
         return ResponseEntity.ok().build();
     }

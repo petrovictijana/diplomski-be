@@ -43,6 +43,11 @@ app:
   invitation-token: # invitation-based account activation
     duration-in-hours: 24
 
+cors: # browser frontend (React dev server); override per environment
+  allowed-origins:
+    - http://localhost:5173
+  allow-credentials: true
+
 aws:
   region: eu-central-1
   endpoint: http://localhost:4566

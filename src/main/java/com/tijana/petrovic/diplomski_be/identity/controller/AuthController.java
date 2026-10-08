@@ -8,6 +8,7 @@ import com.tijana.petrovic.diplomski_be.identity.security.RefreshTokenCookieFact
 import com.tijana.petrovic.diplomski_be.identity.service.AuthService;
 import com.tijana.petrovic.diplomski_be.identity.service.AuthTokens;
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseEntity;
@@ -24,14 +25,14 @@ public class AuthController {
     private final RefreshTokenCookieFactory refreshTokenCookieFactory;
 
     @PostMapping("/activate-account")
-    public ResponseEntity<String> activateAccount(@RequestBody ActivateAccountRequest request) {
-        authService.activateAccount(request.getToken(), request.getPassword());
+    public ResponseEntity<String> activateAccount(@Valid @RequestBody ActivateAccountRequest request) {
+        authService.activateAccount(request.token(), request.password());
 
         return ResponseEntity.ok().build();
     }
 
     @PostMapping("/login")
-    public ResponseEntity<AuthResponse> login(@RequestBody LoginRequest request) {
+    public ResponseEntity<AuthResponse> login(@Valid @RequestBody LoginRequest request) {
         var tokens = authService.login(request.email(), request.password());
 
         return toResponse(tokens);
