@@ -51,4 +51,8 @@ public interface PermissionGrantRepository extends JpaRepository<PermissionGrant
               )
             """)
     List<PermissionGrant> findEffectiveGrants(@Param("userId") UUID userId);
+
+    /** Active grants made directly on one resource - the subjects who hold a right on it. */
+    List<PermissionGrant> findByResourceTypeAndResourceIdAndRevokedAtIsNull(
+            ResourceType resourceType, UUID resourceId);
 }

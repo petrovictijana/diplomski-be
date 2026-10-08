@@ -5,6 +5,10 @@ import com.tijana.petrovic.diplomski_be.document.exception.DocumentContentNotAva
 import com.tijana.petrovic.diplomski_be.document.exception.DocumentNotFoundException;
 import com.tijana.petrovic.diplomski_be.document.exception.LabelAlreadyExistsException;
 import com.tijana.petrovic.diplomski_be.document.exception.UnknownLabelException;
+import com.tijana.petrovic.diplomski_be.access.exception.InvalidPermissionGrantException;
+import com.tijana.petrovic.diplomski_be.access.exception.PermissionAlreadyGrantedException;
+import com.tijana.petrovic.diplomski_be.access.exception.PermissionDeniedException;
+import com.tijana.petrovic.diplomski_be.access.exception.PermissionGrantNotFoundException;
 import com.tijana.petrovic.diplomski_be.identity.exception.AccountAlreadyActivatedException;
 import com.tijana.petrovic.diplomski_be.identity.exception.AccountNotActivatedException;
 import com.tijana.petrovic.diplomski_be.identity.exception.ActiveUserAlreadyExistsException;
@@ -115,6 +119,28 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(UnknownLabelException.class)
     public ResponseEntity<ErrorResponse> handleUnknownLabel(UnknownLabelException ex) {
         return build(ErrorCode.UNKNOWN_LABEL, ex);
+    }
+
+    // --- access ---
+
+    @ExceptionHandler(PermissionDeniedException.class)
+    public ResponseEntity<ErrorResponse> handlePermissionDenied(PermissionDeniedException ex) {
+        return build(ErrorCode.PERMISSION_DENIED, ex);
+    }
+
+    @ExceptionHandler(InvalidPermissionGrantException.class)
+    public ResponseEntity<ErrorResponse> handleInvalidPermissionGrant(InvalidPermissionGrantException ex) {
+        return build(ErrorCode.INVALID_PERMISSION_GRANT, ex);
+    }
+
+    @ExceptionHandler(PermissionAlreadyGrantedException.class)
+    public ResponseEntity<ErrorResponse> handlePermissionAlreadyGranted(PermissionAlreadyGrantedException ex) {
+        return build(ErrorCode.PERMISSION_ALREADY_GRANTED, ex);
+    }
+
+    @ExceptionHandler(PermissionGrantNotFoundException.class)
+    public ResponseEntity<ErrorResponse> handlePermissionGrantNotFound(PermissionGrantNotFoundException ex) {
+        return build(ErrorCode.PERMISSION_GRANT_NOT_FOUND, ex);
     }
 
     // --- request shape ---
