@@ -139,6 +139,12 @@
 			<artifactId>s3</artifactId>
 		</dependency>
 
+		<!-- Publishes the "document ready" event to a topic consumed downstream (e.g. Databricks) -->
+		<dependency>
+			<groupId>software.amazon.awssdk</groupId>
+			<artifactId>sns</artifactId>
+		</dependency>
+
 		<!-- Brings SqsAsyncClient and the @SqsListener infrastructure -->
 		<dependency>
 			<groupId>io.awspring.cloud</groupId>

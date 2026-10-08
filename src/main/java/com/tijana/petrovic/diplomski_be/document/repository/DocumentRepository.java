@@ -13,4 +13,12 @@ public interface DocumentRepository extends JpaRepository<Document, UUID> {
      * deleted document keeps its row for the audit trail, but must behave as if it is gone.
      */
     Optional<Document> findByIdAndDeletedAtIsNull(UUID id);
+
+    /**
+     * Resolves the document an upload event belongs to: the storage key the event carries is
+     * the document's {@code filePath}. Not filtered by {@code deletedAt} - an event for a
+     * since-deleted document still has to be matched so it can be handled, not mistaken for
+     * an unknown object.
+     */
+    Optional<Document> findByFilePath(String filePath);
 }

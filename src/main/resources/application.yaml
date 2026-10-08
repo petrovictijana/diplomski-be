@@ -60,3 +60,6 @@ aws:
     path-style-access: true # required by LocalStack, false against real S3
   sqs:
     document-upload-queue: document-upload-events
+  sns:
+    # LocalStack account id is 000000000000; a real deployment uses its own account and region.
+    document-ready-topic-arn: arn:aws:sns:eu-central-1:000000000000:document-ready-events

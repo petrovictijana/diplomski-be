@@ -1,6 +1,7 @@
 package com.tijana.petrovic.diplomski_be.document.service;
 
 import com.tijana.petrovic.diplomski_be.document.dto.CreateDocumentRequest;
+import com.tijana.petrovic.diplomski_be.document.dto.DocumentReadyMessage;
 import com.tijana.petrovic.diplomski_be.document.dto.DocumentUploadResponse;
 import com.tijana.petrovic.diplomski_be.document.entity.Document;
 import com.tijana.petrovic.diplomski_be.document.entity.DocumentLabel;
@@ -15,14 +16,13 @@ import com.tijana.petrovic.diplomski_be.document.repository.LabelRepository;
 import com.tijana.petrovic.diplomski_be.identity.security.CurrentUserProvider;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.LinkedHashSet;
+import java.time.OffsetDateTime;
 import java.util.List;
-import java.util.Locale;
 import java.util.UUID;
-import java.util.stream.Collectors;
 
 @Log4j2
 @RequiredArgsConstructor
@@ -34,6 +34,7 @@ public class DocumentService {
     private final LabelRepository labelRepository;
     private final DocumentStorageService documentStorageService;
     private final CurrentUserProvider currentUserProvider;
+    private final ApplicationEventPublisher eventPublisher;
 
     /**
      * Creates the metadata row and returns the URL its content must be uploaded to.
@@ -65,6 +66,43 @@ public class DocumentService {
                 document.getId(), document.getFilename(), labelNames(labels), currentUserId);
 
         return DocumentUploadResponse.of(document, labelNames(labels), upload);
+    }
+
+    /**
+     * Confirms the upload of a document from its storage event and signals downstream.
+     * <p>
+     * Called off the upload notification, not an authenticated request, so it carries no
+     * current user - the acting subject is the system. It is idempotent: SQS delivers at
+     * least once, and only the first transition out of {@code PENDING} records the size and
+     * emits the event, so a redelivered event is a no-op rather than a duplicate signal.
+     * <p>
+     * The event is raised here but sent only after this transaction commits (see
+     * {@link DocumentEventPublisher}), so a consumer is never told a document is ready while
+     * its confirmed state could still roll back.
+     */
+    @Transactional
+    public void confirmUpload(String bucket, String storageKey, Long fileSize) {
+        var document = documentRepository.findByFilePath(storageKey).orElse(null);
+
+        if (document == null) {
+            log.warn("[DocumentService] Upload event for unknown key {} - no matching document", storageKey);
+            return;
+        }
+
+        if (document.getStatus() == DocumentStatus.UPLOADED) {
+            log.info("[DocumentService] Duplicate upload event for document {} - already confirmed", document.getId());
+            return;
+        }
+
+        document.setStatus(DocumentStatus.UPLOADED);
+        document.setFileSize(fileSize);
+        document.setUpdatedAt(OffsetDateTime.now());
+
+        var labels = documentLabelRepository.findLabelsByDocumentId(document.getId());
+        eventPublisher.publishEvent(new DocumentUploadedEvent(toReadyMessage(document, bucket, labels)));
+
+        log.info("[DocumentService] Confirmed upload of document {} ({} bytes) with labels {}",
+                document.getId(), fileSize, labelNames(labels));
     }
 
     /**
@@ -132,6 +170,22 @@ public class DocumentService {
 
     private List<String> labelNames(List<Label> labels) {
         return labels.stream().map(Label::getName).toList();
+    }
+
+    private DocumentReadyMessage toReadyMessage(Document document, String bucket, List<Label> labels) {
+        var labelRefs = labels.stream()
+                .map(label -> new DocumentReadyMessage.LabelRef(label.getId(), label.getName()))
+                .toList();
+
+        return new DocumentReadyMessage(
+                DocumentReadyMessage.DOCUMENT_UPLOADED,
+                OffsetDateTime.now(),
+                document.getId(),
+                bucket,
+                document.getFilePath(),
+                document.getFilename(),
+                labelRefs
+        );
     }
 
 }

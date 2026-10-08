@@ -12,6 +12,7 @@ import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.S3Configuration;
 import software.amazon.awssdk.services.s3.presigner.S3Presigner;
+import software.amazon.awssdk.services.sns.SnsClient;
 import software.amazon.awssdk.services.sqs.SqsAsyncClient;
 
 /**
@@ -72,6 +73,17 @@ public class AwsConfig {
     @Bean
     public SqsAsyncClient sqsAsyncClient(AwsCredentialsProvider credentialsProvider) {
         var builder = SqsAsyncClient.builder()
+                .region(region())
+                .credentialsProvider(credentialsProvider);
+
+        applyEndpointOverride(builder);
+
+        return builder.build();
+    }
+
+    @Bean
+    public SnsClient snsClient(AwsCredentialsProvider credentialsProvider) {
+        var builder = SnsClient.builder()
                 .region(region())
                 .credentialsProvider(credentialsProvider);
 
