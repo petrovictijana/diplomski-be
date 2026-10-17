@@ -10,8 +10,11 @@ import lombok.extern.log4j.Log4j2;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.OffsetDateTime;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 /**
  * The single source of truth for access decisions. A user's effective rights are the union of
@@ -34,7 +37,7 @@ public class AccessControlService {
      */
     @Transactional(readOnly = true)
     public boolean hasPermission(UUID userId, Action action, ResourceType resourceType, UUID resourceId) {
-        return permissionGrantRepository.hasPermission(userId, action, resourceType, resourceId);
+        return permissionGrantRepository.hasPermission(userId, action, resourceType, resourceId, OffsetDateTime.now());
     }
 
     /**
@@ -57,6 +60,34 @@ public class AccessControlService {
      */
     @Transactional(readOnly = true)
     public List<PermissionGrant> getEffectiveGrants(UUID userId) {
-        return permissionGrantRepository.findEffectiveGrants(userId);
+        return permissionGrantRepository.findEffectiveGrants(userId, OffsetDateTime.now());
+    }
+
+    /**
+     * The labels the user may read, as an access decision rather than a list of rows: either
+     * every label (a label-wide READ grant with a null resource id), or a specific set of ids.
+     * <p>
+     * Derived from the same effective-grant union as every other check - this filters that
+     * user's own grants (a small set already narrowed to the active ones that belong to them),
+     * not a table of labels, so it does not read everything into memory to filter in Java. The
+     * label store expands the "all" case; this service owns only the decision.
+     */
+    @Transactional(readOnly = true)
+    public ReadableLabels getReadableLabels(UUID userId) {
+        var labelReadGrants = getEffectiveGrants(userId).stream()
+                .filter(grant -> grant.getAction() == Action.READ
+                        && grant.getResourceType() == ResourceType.LABEL)
+                .toList();
+
+        var labelWideRead = labelReadGrants.stream()
+                .anyMatch(grant -> grant.getResourceId() == null);
+        if (labelWideRead) {
+            return ReadableLabels.ofAll();
+        }
+
+        var ids = labelReadGrants.stream()
+                .map(PermissionGrant::getResourceId)
+                .collect(Collectors.toSet());
+        return ReadableLabels.ofIds(ids);
     }
 }

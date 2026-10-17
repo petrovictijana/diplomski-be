@@ -1,8 +1,11 @@
 package com.tijana.petrovic.diplomski_be.document.service;
 
 import com.tijana.petrovic.diplomski_be.document.dto.CreateDocumentRequest;
-import com.tijana.petrovic.diplomski_be.document.dto.DocumentReadyMessage;
+import com.tijana.petrovic.diplomski_be.document.dto.DocumentLabelsChangedBody;
+import com.tijana.petrovic.diplomski_be.document.dto.DocumentLabelsResponse;
 import com.tijana.petrovic.diplomski_be.document.dto.DocumentUploadResponse;
+import com.tijana.petrovic.diplomski_be.document.dto.DocumentUploadedBody;
+import com.tijana.petrovic.diplomski_be.document.dto.UpdateDocumentLabelsRequest;
 import com.tijana.petrovic.diplomski_be.document.entity.Document;
 import com.tijana.petrovic.diplomski_be.document.entity.DocumentLabel;
 import com.tijana.petrovic.diplomski_be.document.entity.DocumentStatus;
@@ -10,6 +13,7 @@ import com.tijana.petrovic.diplomski_be.document.entity.Label;
 import com.tijana.petrovic.diplomski_be.document.exception.DocumentAlreadyUploadedException;
 import com.tijana.petrovic.diplomski_be.document.exception.DocumentContentNotAvailableException;
 import com.tijana.petrovic.diplomski_be.document.exception.DocumentNotFoundException;
+import com.tijana.petrovic.diplomski_be.document.exception.UnknownLabelException;
 import com.tijana.petrovic.diplomski_be.document.repository.DocumentLabelRepository;
 import com.tijana.petrovic.diplomski_be.document.repository.DocumentRepository;
 import com.tijana.petrovic.diplomski_be.document.repository.LabelRepository;
@@ -22,7 +26,9 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.OffsetDateTime;
 import java.util.List;
+import java.util.Locale;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Log4j2
 @RequiredArgsConstructor
@@ -49,23 +55,86 @@ public class DocumentService {
      */
     @Transactional
     public DocumentUploadResponse createDocument(CreateDocumentRequest request) {
-        var currentUserId = currentUserProvider.currentUserId();
-        var labels = labelRepository.findByNameIn(request.labels());
+        var currentUserId = currentUserProvider.currentUserIdOrNull();
+        var labels = resolveLabels(request.labels());
+
+        // A fresh, unguessable key, independent of the document id (which is handed to clients).
+        // Generated before the insert so filePath is set in a single save, and matched back to
+        // this row by confirmUpload via findByFilePath when the S3 upload event arrives.
+        var storageKey = documentStorageService.generateStorageKey();
 
         var document = documentRepository.save(Document.builder()
                 .filename(request.filename())
+                .filePath(storageKey)
                 .createdBy(currentUserId)
                 .build());
 
         applyLabels(document, labels, currentUserId);
 
-        var storageKey = documentStorageService.generateStorageKey(document.getId());
         var upload = documentStorageService.presignUpload(storageKey);
 
         log.info("[DocumentService] Created document {} ({}) with labels {} for user {}",
                 document.getId(), document.getFilename(), labelNames(labels), currentUserId);
 
         return DocumentUploadResponse.of(document, labelNames(labels), upload);
+    }
+
+    /**
+     * Replaces a document's labels with the requested set and signals downstream.
+     * <p>
+     * A replace, not a merge: the request carries the complete set the document should end
+     * up with. Only the difference touches the database - assignments that fall out of the
+     * set are deleted, new ones are inserted, and an unchanged one keeps its original audit
+     * row rather than being rewritten.
+     * <p>
+     * Because labels gate access, a {@code DOCUMENT_LABELS_CHANGED} event is emitted so downstream
+     * (the ingestion job) re-gates the content against the new classification - but only once the
+     * content exists. A still-{@code PENDING} document has nothing downstream yet; its labels
+     * will travel out with the {@code DOCUMENT_UPLOADED} event when the upload is confirmed.
+     * As with that event, the publish is deferred to after commit (see
+     * {@link DocumentEventPublisher}).
+     */
+    @Transactional
+    public DocumentLabelsResponse updateLabels(UUID documentId, UpdateDocumentLabelsRequest request) {
+        var currentUserId = currentUserProvider.currentUserId();
+        var document = activeDocument(documentId);
+        var desiredLabels = resolveLabels(request.labels());
+
+        var currentAssignments = documentLabelRepository.findAssignmentsByDocumentId(documentId);
+        var currentLabelIds = currentAssignments.stream()
+                .map(assignment -> assignment.getLabel().getId())
+                .collect(Collectors.toSet());
+        var desiredLabelIds = desiredLabels.stream()
+                .map(Label::getId)
+                .collect(Collectors.toSet());
+
+        var removed = currentAssignments.stream()
+                .filter(assignment -> !desiredLabelIds.contains(assignment.getLabel().getId()))
+                .toList();
+        var added = desiredLabels.stream()
+                .filter(label -> !currentLabelIds.contains(label.getId()))
+                .toList();
+
+        if (removed.isEmpty() && added.isEmpty()) {
+            log.info("[DocumentService] Labels of document {} unchanged ({}) - no update", documentId, labelNames(desiredLabels));
+            return DocumentLabelsResponse.of(document, labelNames(desiredLabels));
+        }
+
+        documentLabelRepository.deleteAll(removed);
+        applyLabels(document, added, currentUserId);
+
+        document.setUpdatedAt(OffsetDateTime.now());
+        document.setUpdatedBy(currentUserId);
+
+        if (document.getStatus() == DocumentStatus.UPLOADED) {
+            eventPublisher.publishEvent(new DocumentLabelsChangedBody(
+                    document.getId(), toLabelIds(desiredLabels), OffsetDateTime.now()));
+        }
+
+        log.info("[DocumentService] Updated labels of document {} to {} (added {}, removed {}) by user {}",
+                documentId, labelNames(desiredLabels), added.size(), removed.size(), currentUserId);
+
+        return DocumentLabelsResponse.of(document, labelNames(desiredLabels));
     }
 
     /**
@@ -99,7 +168,9 @@ public class DocumentService {
         document.setUpdatedAt(OffsetDateTime.now());
 
         var labels = documentLabelRepository.findLabelsByDocumentId(document.getId());
-        eventPublisher.publishEvent(new DocumentUploadedEvent(toReadyMessage(document, bucket, labels)));
+        eventPublisher.publishEvent(new DocumentUploadedBody(
+                document.getId(), bucket, document.getFilePath(), document.getFilename(),
+                toLabelIds(labels), OffsetDateTime.now()));
 
         log.info("[DocumentService] Confirmed upload of document {} ({} bytes) with labels {}",
                 document.getId(), fileSize, labelNames(labels));
@@ -156,6 +227,33 @@ public class DocumentService {
                         "No document with id %s.".formatted(documentId)));
     }
 
+    /**
+     * Resolves label names to their rows, failing if any is unknown.
+     * <p>
+     * Names are canonicalized to uppercase (the form they are stored in) and deduplicated
+     * first, so the caller's casing and repeats do not matter. An unknown name is rejected
+     * rather than silently dropped: a missing label is a document fewer people can reach than
+     * intended, which the caller must see, not discover later.
+     */
+    private List<Label> resolveLabels(List<String> requestedNames) {
+        // Locale.ROOT for the same reason as LabelService - a locale-sensitive upper() would
+        // not match the canonical names stored in the table.
+        var canonical = requestedNames.stream()
+                .map(name -> name.toUpperCase(Locale.ROOT))
+                .distinct()
+                .toList();
+
+        var found = labelRepository.findByNameIn(canonical);
+
+        if (found.size() != canonical.size()) {
+            var foundNames = found.stream().map(Label::getName).collect(Collectors.toSet());
+            var unknown = canonical.stream().filter(name -> !foundNames.contains(name)).toList();
+            throw new UnknownLabelException("Unknown label(s): %s.".formatted(String.join(", ", unknown)));
+        }
+
+        return found;
+    }
+
     private void applyLabels(Document document, List<Label> labels, UUID currentUserId) {
         var assignments = labels.stream()
                 .map(label -> DocumentLabel.builder()
@@ -172,20 +270,10 @@ public class DocumentService {
         return labels.stream().map(Label::getName).toList();
     }
 
-    private DocumentReadyMessage toReadyMessage(Document document, String bucket, List<Label> labels) {
-        var labelRefs = labels.stream()
-                .map(label -> new DocumentReadyMessage.LabelRef(label.getId(), label.getName()))
+    private List<UUID> toLabelIds(List<Label> labels) {
+        return labels.stream()
+                .map(Label::getId)
                 .toList();
-
-        return new DocumentReadyMessage(
-                DocumentReadyMessage.DOCUMENT_UPLOADED,
-                OffsetDateTime.now(),
-                document.getId(),
-                bucket,
-                document.getFilePath(),
-                document.getFilename(),
-                labelRefs
-        );
     }
 
 }

@@ -1,12 +1,12 @@
 package com.tijana.petrovic.diplomski_be.aws;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.tijana.petrovic.diplomski_be.document.service.DocumentService;
 import io.awspring.cloud.sqs.annotation.SqsListener;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
 import org.springframework.stereotype.Component;
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.ObjectMapper;
 
 import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
@@ -49,7 +49,7 @@ public class DocumentUploadListener {
     private S3EventPayload parse(String payload) {
         try {
             return objectMapper.readValue(payload, S3EventPayload.class);
-        } catch (JsonProcessingException e) {
+        } catch (JacksonException e) {
             log.warn("[DocumentUploadListener] Could not parse S3 event, ignoring: {}", payload);
             return null;
         }

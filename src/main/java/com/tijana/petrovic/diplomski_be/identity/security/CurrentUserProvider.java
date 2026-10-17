@@ -4,6 +4,7 @@ import com.tijana.petrovic.diplomski_be.identity.entity.User;
 import com.tijana.petrovic.diplomski_be.identity.exception.NoAuthenticatedUserException;
 import com.tijana.petrovic.diplomski_be.identity.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.authentication.AnonymousAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Component;
@@ -42,6 +43,23 @@ public class CurrentUserProvider {
     }
 
     public UUID currentUserId() {
+        return currentUser().getId();
+    }
+
+    /**
+     * The current user's id, or {@code null} when the request is unauthenticated (including
+     * Spring's anonymous token). For the deliberately open endpoints - anonymous label
+     * creation and document upload - where {@link #currentUserId()} would reject the caller.
+     */
+    public UUID currentUserIdOrNull() {
+        var authentication = SecurityContextHolder.getContext().getAuthentication();
+
+        if (authentication == null
+                || !authentication.isAuthenticated()
+                || authentication instanceof AnonymousAuthenticationToken) {
+            return null;
+        }
+
         return currentUser().getId();
     }
 

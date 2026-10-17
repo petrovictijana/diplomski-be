@@ -15,7 +15,8 @@ public record PermissionGrantResponse(
         ResourceType resourceType,
         UUID resourceId,
         OffsetDateTime createdAt,
-        UUID createdBy
+        UUID createdBy,
+        OffsetDateTime expiresAt
 ) {
     public static PermissionGrantResponse from(PermissionGrant grant) {
         return new PermissionGrantResponse(
@@ -26,7 +27,8 @@ public record PermissionGrantResponse(
                 grant.getResourceType(),
                 grant.getResourceId(),
                 grant.getCreatedAt(),
-                grant.getCreatedBy()
+                grant.getCreatedBy(),
+                grant.getExpiresAt()
         );
     }
 }

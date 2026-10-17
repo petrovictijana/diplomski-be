@@ -60,6 +60,10 @@ public class PermissionGrant {
     @Column(name = "createdBy", updatable = false)
     private UUID createdBy;
 
+    /** When the right stops being effective; {@code null} means it never expires. */
+    @Column(name = "expiresAt")
+    private OffsetDateTime expiresAt;
+
     @Column(name = "revokedAt")
     private OffsetDateTime revokedAt;
 
@@ -68,6 +72,11 @@ public class PermissionGrant {
 
     public boolean isRevoked() {
         return revokedAt != null;
+    }
+
+    /** Effective at {@code now}: neither revoked nor past its expiry. */
+    public boolean isActive(OffsetDateTime now) {
+        return !isRevoked() && (expiresAt == null || expiresAt.isAfter(now));
     }
 
     @Override

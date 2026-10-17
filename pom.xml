@@ -42,6 +42,15 @@
 			<artifactId>spring-boot-starter-webmvc</artifactId>
 		</dependency>
 
+		<!-- Jackson + its auto-configured ObjectMapper bean. In Boot 4 the webmvc starter no
+		     longer brings this transitively, so it is declared explicitly - the SQS listener and
+		     the SNS publisher both inject ObjectMapper, and it configures JavaTimeModule for the
+		     OffsetDateTime fields in the event payloads. -->
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-jackson</artifactId>
+		</dependency>
+
 		<!-- Spring Data JPA + Hibernate -->
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
@@ -137,12 +146,6 @@
 		<dependency>
 			<groupId>software.amazon.awssdk</groupId>
 			<artifactId>s3</artifactId>
-		</dependency>
-
-		<!-- Publishes the "document ready" event to a topic consumed downstream (e.g. Databricks) -->
-		<dependency>
-			<groupId>software.amazon.awssdk</groupId>
-			<artifactId>sns</artifactId>
 		</dependency>
 
 		<!-- Brings SqsAsyncClient and the @SqsListener infrastructure -->

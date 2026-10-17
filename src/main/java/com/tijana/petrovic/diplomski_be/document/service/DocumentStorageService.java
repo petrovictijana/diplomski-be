@@ -38,8 +38,16 @@ public class DocumentStorageService {
      * filename is user input and the id is handed to clients, and neither should let anyone
      * construct the key of a document they cannot see.
      */
-    public String generateStorageKey(UUID documentId) {
-        return s3Config.getKeyPrefix() + documentId;
+    public String generateStorageKey() {
+        return s3Config.getKeyPrefix() + UUID.randomUUID();
+    }
+
+    /**
+     * The bucket documents live in. Needed when an event must carry the object's location but
+     * no S3 notification supplies it - a relabel, unlike an upload, is not driven off an S3 event.
+     */
+    public String bucket() {
+        return s3Config.getBucket();
     }
 
     /**

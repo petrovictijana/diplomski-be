@@ -1,62 +1,56 @@
 package com.tijana.petrovic.diplomski_be.document.service;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.tijana.petrovic.diplomski_be.aws.SnsConfig;
-import com.tijana.petrovic.diplomski_be.document.dto.DocumentReadyMessage;
+import com.tijana.petrovic.diplomski_be.aws.SqsConfig;
+import com.tijana.petrovic.diplomski_be.document.dto.DocumentEvent;
+import io.awspring.cloud.sqs.operations.SqsTemplate;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.event.TransactionPhase;
 import org.springframework.transaction.event.TransactionalEventListener;
-import software.amazon.awssdk.services.sns.SnsClient;
-import software.amazon.awssdk.services.sns.model.MessageAttributeValue;
-import software.amazon.awssdk.services.sns.model.PublishRequest;
-
-import java.util.Map;
+import tools.jackson.databind.ObjectMapper;
 
 /**
- * Publishes the "document ready" event to SNS, after the confirming transaction commits.
+ * Sends a {@link DocumentEvent} to the document-events queue, after the raising transaction
+ * commits.
  * <p>
- * Binding to {@link TransactionPhase#AFTER_COMMIT} is what keeps the signal honest: a
- * consumer is told a document is ready only once its row is durably committed. The trade-off
- * is that a publish failing here, after commit, is lost rather than retried - acceptable
- * because the confirmation is idempotent and a consumer deduplicates by document id; a
- * transactional outbox would be the next step if that gap ever mattered.
+ * A single SQS queue, not an SNS topic: there is exactly one consumer (the Databricks ingestion
+ * job), so a topic would only add a hop and an envelope for no fan-out. If a second, independent
+ * consumer ever appears, an SNS topic goes in front of this queue and the backend keeps
+ * publishing the same way.
+ * <p>
+ * Binding to {@link TransactionPhase#AFTER_COMMIT} is what keeps the signal honest: a consumer is
+ * told about a document only once the state behind the event is durably committed. The trade-off
+ * is that a send failing here, after commit, is lost rather than retried - acceptable because the
+ * confirmation is idempotent and a consumer deduplicates by document id; a transactional outbox
+ * would be the next step if that gap ever mattered.
  */
 @Log4j2
 @RequiredArgsConstructor
 @Component
 public class DocumentEventPublisher {
 
-    private final SnsClient snsClient;
-    private final SnsConfig snsConfig;
+    private final SqsTemplate sqsTemplate;
+    private final SqsConfig sqsConfig;
     private final ObjectMapper objectMapper;
 
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
-    public void onDocumentUploaded(DocumentUploadedEvent event) {
-        publish(event.message());
-    }
-
-    private void publish(DocumentReadyMessage message) {
+    public void onDocumentEvent(DocumentEvent event) {
         try {
-            var body = objectMapper.writeValueAsString(message);
+            // Serialized against the DocumentEvent type so @JsonTypeInfo writes the eventType
+            // discriminator into the body; the queue carries plain, self-describing JSON.
+            var body = objectMapper.writeValueAsString(event);
 
-            snsClient.publish(PublishRequest.builder()
-                    .topicArn(snsConfig.getDocumentReadyTopicArn())
-                    .message(body)
-                    // A message attribute, not a body field, so a subscription can filter on it.
-                    .messageAttributes(Map.of("eventType", MessageAttributeValue.builder()
-                            .dataType("String")
-                            .stringValue(message.eventType())
-                            .build()))
-                    .build());
+            sqsTemplate.send(to -> to
+                    .queue(sqsConfig.getDocumentEventQueue())
+                    .payload(body));
 
-            log.info("[DocumentEventPublisher] Published {} for document {} to {}",
-                    message.eventType(), message.documentId(), snsConfig.getDocumentReadyTopicArn());
+            log.info("[DocumentEventPublisher] Sent {} for document {} to {}",
+                    event.eventType(), event.documentId(), sqsConfig.getDocumentEventQueue());
         } catch (Exception e) {
-            // After-commit: the row is already persisted, so a failed publish is logged, not thrown.
-            log.error("[DocumentEventPublisher] Failed to publish {} for document {}",
-                    message.eventType(), message.documentId(), e);
+            // After-commit: the state is already persisted, so a failed send is logged, not thrown.
+            log.error("[DocumentEventPublisher] Failed to send {} for document {}",
+                    event.eventType(), event.documentId(), e);
         }
     }
 

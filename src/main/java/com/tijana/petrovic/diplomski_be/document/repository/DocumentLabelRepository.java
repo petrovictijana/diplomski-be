@@ -14,4 +14,11 @@ public interface DocumentLabelRepository extends JpaRepository<DocumentLabel, UU
     /** The labels currently applied to a document, resolved in one statement for the event payload. */
     @Query("select dl.label from DocumentLabel dl where dl.document.id = :documentId")
     List<Label> findLabelsByDocumentId(@Param("documentId") UUID documentId);
+
+    /**
+     * The assignment rows themselves, label fetched, so a relabel can diff against the current
+     * set and delete only the rows that fall out of it - keeping the audit on the ones that stay.
+     */
+    @Query("select dl from DocumentLabel dl join fetch dl.label where dl.document.id = :documentId")
+    List<DocumentLabel> findAssignmentsByDocumentId(@Param("documentId") UUID documentId);
 }

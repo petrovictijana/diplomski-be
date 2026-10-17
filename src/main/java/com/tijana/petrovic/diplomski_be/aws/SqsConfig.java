@@ -12,4 +12,7 @@ public class SqsConfig {
     /** Queue that receives the S3 ObjectCreated notifications - see the @SqsListener. */
     private String documentUploadQueue;
 
+    /** Queue the backend publishes document events to, consumed downstream (Databricks ingestion). */
+    private String documentEventQueue;
+
 }

@@ -50,8 +50,8 @@ public class Document {
     @Column(name = "createdAt", nullable = false, updatable = false)
     private OffsetDateTime createdAt = OffsetDateTime.now();
 
-    /** The user who uploaded the file. */
-    @Column(name = "createdBy", nullable = false, updatable = false)
+    /** The user who uploaded the file, or null for an anonymous upload (open endpoint). */
+    @Column(name = "createdBy", updatable = false)
     private UUID createdBy;
 
     @Column(name = "updatedAt")

@@ -19,6 +19,7 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Duration;
 import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.UUID;
@@ -47,8 +48,13 @@ public class PermissionGrantService {
     public PermissionGrantResponse grant(GrantPermissionRequest request) {
         validateSubject(request);
         validateScope(request);
+        validateTtl(request.ttl());
 
         var actingUserId = currentUserProvider.currentUserId();
+        var now = OffsetDateTime.now();
+        var expiresAt = request.ttl() == null ? null : now.plus(request.ttl());
+
+        clearExpiredMatch(request, actingUserId, now);
 
         var grant = PermissionGrant.builder()
                 .userId(request.userId())
@@ -56,23 +62,49 @@ public class PermissionGrantService {
                 .action(request.action())
                 .resourceType(request.resourceType())
                 .resourceId(request.resourceId())
+                .createdAt(now)
                 .createdBy(actingUserId)
+                .expiresAt(expiresAt)
                 .build();
 
         try {
             // saveAndFlush so the unique-index violation surfaces here, not at commit
             var saved = permissionGrantRepository.saveAndFlush(grant);
 
-            log.info("[PermissionGrantService] Granted {} on {} {} to {} by {}",
+            log.info("[PermissionGrantService] Granted {} on {} {} to {} by {} (expires {})",
                     saved.getAction(), saved.getResourceType(), saved.getResourceId(),
                     saved.getUserId() != null ? "user " + saved.getUserId() : "group " + saved.getGroupId(),
-                    actingUserId);
+                    actingUserId, saved.getExpiresAt() != null ? saved.getExpiresAt() : "never");
 
             return PermissionGrantResponse.from(saved);
         } catch (DataIntegrityViolationException exception) {
             // The partial unique index is the real guard against a duplicate active grant
             throw new PermissionAlreadyGrantedException("This right is already granted to the subject.");
         }
+    }
+
+    /**
+     * Makes room for the new grant when an identical one already occupies the active slot.
+     * A still-valid grant is a genuine duplicate and is rejected; an expired one is revoked so
+     * the new grant can take its place - the partial unique index cannot tell them apart, since
+     * its predicate cannot see expiry. Flushed immediately so the slot is free before the insert.
+     */
+    private void clearExpiredMatch(GrantPermissionRequest request, UUID actingUserId, OffsetDateTime now) {
+        permissionGrantRepository.findActiveMatch(
+                        request.userId(), request.groupId(), request.action(),
+                        request.resourceType(), request.resourceId())
+                .ifPresent(existing -> {
+                    if (existing.isActive(now)) {
+                        throw new PermissionAlreadyGrantedException(
+                                "This right is already granted to the subject.");
+                    }
+
+                    existing.setRevokedAt(now);
+                    existing.setRevokedBy(actingUserId);
+                    permissionGrantRepository.saveAndFlush(existing);
+
+                    log.info("[PermissionGrantService] Revoked expired grant {} before re-issuing", existing.getId());
+                });
     }
 
     @Transactional
@@ -97,6 +129,13 @@ public class PermissionGrantService {
                 .stream()
                 .map(PermissionGrantResponse::from)
                 .toList();
+    }
+
+    /** A duration, when given, must be positive - a zero or negative ttl is a malformed grant. */
+    private void validateTtl(Duration ttl) {
+        if (ttl != null && (ttl.isZero() || ttl.isNegative())) {
+            throw new InvalidPermissionGrantException("Grant duration (ttl) must be positive.");
+        }
     }
 
     /** Exactly one subject, and it must exist. */

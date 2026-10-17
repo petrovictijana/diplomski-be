@@ -14,4 +14,10 @@ public interface LabelRepository extends JpaRepository<Label, UUID> {
 
     /** Resolves a batch of label names in one statement - callers pass canonical uppercase names. */
     List<Label> findByNameIn(Collection<String> names);
+
+    /** Every label, name-ordered - for a user whose grants let them read all labels. */
+    List<Label> findAllByOrderByNameAsc();
+
+    /** The named labels, name-ordered - the concrete rows a user's specific READ grants resolve to. */
+    List<Label> findByIdInOrderByNameAsc(Collection<UUID> ids);
 }
